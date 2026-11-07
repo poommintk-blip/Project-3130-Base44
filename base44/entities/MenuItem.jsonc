@@ -1,0 +1,39 @@
+{
+  "name": "MenuItem",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "name_en": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "coffee",
+        "tea",
+        "other"
+      ],
+      "enumColors": [
+        "blue",
+        "green",
+        "yellow"
+      ]
+    },
+    "image": {
+      "type": "string",
+      "format": "image"
+    },
+    "sort_order": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "name",
+    "price"
+  ]
+}

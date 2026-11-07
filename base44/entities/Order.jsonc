@@ -1,0 +1,118 @@
+{
+  "name": "Order",
+  "type": "object",
+  "properties": {
+    "queue_no": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "menu_item_id": {
+      "type": "string"
+    },
+    "menu_item_name": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "hot",
+        "iced"
+      ],
+      "enumColors": [
+        "red",
+        "blue"
+      ]
+    },
+    "qty": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "waiting",
+        "making",
+        "ready",
+        "picked",
+        "cancelled"
+      ],
+      "enumColors": [
+        "gray",
+        "yellow",
+        "green",
+        "blue",
+        "red"
+      ]
+    }
+  },
+  "required": [
+    "queue_no",
+    "customer_name",
+    "menu_item_id",
+    "type",
+    "qty",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        }
+      ]
+    }
+  }
+}
