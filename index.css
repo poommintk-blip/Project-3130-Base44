@@ -1,0 +1,541 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 38 58% 96%;
+    --foreground: 27 40% 10%;
+    --card: 40 60% 99%;
+    --card-foreground: 27 40% 10%;
+    --popover: 40 60% 99%;
+    --popover-foreground: 27 40% 10%;
+    --primary: 13 63% 44%;
+    --primary-foreground: 38 58% 96%;
+    --secondary: 36 44% 91%;
+    --secondary-foreground: 27 40% 14%;
+    --muted: 36 44% 91%;
+    --muted-foreground: 28 18% 35%;
+    --accent: 145 18% 34%;
+    --accent-foreground: 38 58% 96%;
+    --destructive: 0 62% 44%;
+    --destructive-foreground: 38 58% 96%;
+    --border: 34 32% 84%;
+    --input: 34 32% 84%;
+    --ring: 13 63% 44%;
+    --chart-1: 13 63% 44%;
+    --chart-2: 145 18% 34%;
+    --chart-3: 34 48% 62%;
+    --chart-4: 27 40% 10%;
+    --chart-5: 200 22% 42%;
+    --radius: 0.9rem;
+    --font-heading: "Noto Serif Thai", ui-serif, Georgia, serif;
+    --font-body: "IBM Plex Sans Thai", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Noto Serif Thai", ui-serif, Georgia, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sidebar-background: 40 60% 99%;
+    --sidebar-foreground: 27 40% 14%;
+    --sidebar-primary: 13 63% 44%;
+    --sidebar-primary-foreground: 38 58% 96%;
+    --sidebar-accent: 36 44% 91%;
+    --sidebar-accent-foreground: 27 40% 14%;
+    --sidebar-border: 34 32% 84%;
+    --sidebar-ring: 13 63% 44%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-heading;
+  }
+}
+
+/* ==========================================================================
+   ORDER MENU  (adapted from the designer "Order Menu" component)
+   Structure kept: outer .omu-section declares the container, .omu-screen owns
+   the fixed height with its own scroller, the tab strip is sticky inside it,
+   each card is its own container and the order bar is the last flex child.
+   ========================================================================== */
+.omu-section {
+  --omu-bg: hsl(36 40% 93%);
+  --omu-panel: #fffdf9;
+  --omu-ink: #23180f;
+  --omu-soft: #7a6553;
+  --omu-accent: #b8492a;
+  --omu-hairline: rgba(35, 24, 15, 0.1);
+
+  --omu-pad: clamp(12px, 2.6cqi, 24px);
+  --omu-gap: 12px;
+  --omu-gutter: clamp(10px, 1.6cqi, 16px);
+  --omu-e: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  container: omu-root / inline-size;
+  display: block;
+  width: 100%;
+  font-family: var(--font-body);
+  color: var(--omu-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.omu-section :where(*) {
+  box-sizing: border-box;
+}
+.omu-section :where(p, h2, h3, ul, li, figure) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.omu-section :where(img) {
+  display: block;
+  max-width: 100%;
+}
+.omu-section :where(button) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.omu-section :where([hidden]) {
+  display: none !important;
+}
+.omu-section :where(:focus-visible) {
+  outline: 2px solid var(--omu-accent);
+  outline-offset: 2px;
+}
+
+@keyframes omu-in {
+  0% {
+    opacity: 0;
+    translate: 0 14px;
+  }
+}
+@keyframes omu-swap {
+  0% {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+.omu-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: clamp(520px, 68dvh, 760px);
+  overflow: hidden;
+  background: var(--omu-bg);
+  border-radius: clamp(16px, 2.2cqi, 26px);
+  box-shadow: 0 26px 60px -34px rgba(35, 24, 15, 0.45);
+  animation: omu-in 0.7s var(--omu-e) both;
+}
+
+.omu-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.omu-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  margin-block: var(--omu-gutter);
+  padding: 0 var(--omu-pad) var(--omu-pad);
+  scrollbar-width: thin;
+}
+
+.omu-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block-end: clamp(10px, 2cqi, 16px);
+}
+.omu-head h2 {
+  font-size: clamp(18px, 3.4cqi, 24px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.omu-head p {
+  font-size: clamp(11px, 1.6cqi, 13px);
+  color: var(--omu-soft);
+  white-space: nowrap;
+}
+
+.omu-tabs {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--omu-bg);
+  display: flex;
+  gap: 8px;
+  margin-inline: calc(var(--omu-pad) * -1);
+  padding: 2px var(--omu-pad) var(--omu-gutter);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--omu-pad);
+  scrollbar-width: none;
+}
+.omu-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.omu-tab {
+  flex: 1 0 auto;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: clamp(9px, 1.6cqi, 12px) clamp(16px, 3.4cqi, 28px);
+  background: var(--omu-panel);
+  border: 1px solid transparent;
+  border-radius: 100px;
+  color: var(--omu-ink);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.omu-tab-en {
+  font-weight: 500;
+  font-size: clamp(13px, 1.8cqi, 15px);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.omu-tab-sub {
+  font-family: var(--font-mono);
+  font-size: clamp(8px, 1.05cqi, 9.5px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--omu-soft);
+  white-space: nowrap;
+}
+.omu-tab:hover {
+  background: #f7f1e6;
+}
+.omu-tab[aria-selected="true"] {
+  background: var(--omu-accent);
+  border-color: var(--omu-accent);
+  color: #fff7ec;
+}
+.omu-tab[aria-selected="true"] .omu-tab-sub {
+  color: rgba(255, 247, 236, 0.72);
+}
+
+.omu-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--omu-gap);
+}
+@container omu-root (width >= 540px) {
+  .omu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container omu-root (width >= 840px) {
+  .omu-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container omu-root (width >= 1120px) {
+  .omu-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.omu-card {
+  container: omu-card / inline-size;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--omu-panel);
+  border-radius: clamp(12px, 2.4cqi, 18px);
+  overflow: hidden;
+  outline: 1.5px solid transparent;
+  outline-offset: -1.5px;
+  transition: outline-color 0.25s ease, box-shadow 0.25s ease, translate 0.25s ease;
+}
+.omu-card:hover {
+  translate: 0 -2px;
+  box-shadow: 0 18px 34px -26px rgba(35, 24, 15, 0.7);
+}
+.omu-card.is-picked {
+  outline-color: var(--omu-accent);
+}
+.omu-card:nth-child(1) {
+  animation: omu-in 0.5s 0.04s var(--omu-e) both;
+}
+.omu-card:nth-child(2) {
+  animation: omu-in 0.5s 0.08s var(--omu-e) both;
+}
+.omu-card:nth-child(3) {
+  animation: omu-in 0.5s 0.12s var(--omu-e) both;
+}
+.omu-card:nth-child(4) {
+  animation: omu-in 0.5s 0.16s var(--omu-e) both;
+}
+.omu-card:nth-child(5) {
+  animation: omu-in 0.5s 0.2s var(--omu-e) both;
+}
+.omu-card:nth-child(6) {
+  animation: omu-in 0.5s 0.24s var(--omu-e) both;
+}
+.omu-card:nth-child(7) {
+  animation: omu-in 0.5s 0.28s var(--omu-e) both;
+}
+.omu-card:nth-child(8) {
+  animation: omu-in 0.5s 0.32s var(--omu-e) both;
+}
+.omu-grid[data-swapped] .omu-card:not([hidden]) {
+  animation: omu-swap 0.34s var(--omu-e) both;
+}
+
+.omu-shot {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: hsl(36 26% 88%);
+}
+.omu-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.omu-chip {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  min-width: 26px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: var(--omu-accent);
+  color: #fff7ec;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.omu-add {
+  position: absolute;
+  inset-block-start: 7%;
+  inset-inline-end: 7%;
+  width: max(30px, 12cqi);
+  height: max(30px, 12cqi);
+  display: grid;
+  place-items: center;
+  background: var(--omu-panel);
+  color: var(--omu-accent);
+  border-radius: 100px;
+  box-shadow: 0 8px 20px -8px rgba(35, 24, 15, 0.5);
+  transition: background 0.18s ease, scale 0.12s ease;
+}
+.omu-add::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  width: 44px;
+  height: 44px;
+}
+.omu-add:hover {
+  background: #fff;
+}
+.omu-add:active {
+  scale: 0.92;
+}
+.omu-add svg {
+  width: 55%;
+  height: 55%;
+}
+
+.omu-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(8px, 4cqi, 14px);
+  padding: clamp(12px, 5.5cqi, 18px) clamp(10px, 4.5cqi, 16px);
+  text-align: center;
+}
+.omu-names {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.omu-sub {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 3.2cqi, 11px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--omu-soft);
+}
+.omu-en {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: clamp(17px, 8.6cqi, 25px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.omu-price {
+  font-family: var(--font-mono);
+  font-size: clamp(13px, 5.2cqi, 16px);
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--omu-accent);
+}
+
+.omu-empty {
+  padding: clamp(28px, 6cqi, 56px) 20px;
+  text-align: center;
+  background: var(--omu-panel);
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--omu-soft);
+}
+
+.omu-bar {
+  flex: 0 0 auto;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(10px, 2.4cqi, 20px);
+  padding: clamp(12px, 2cqi, 18px) clamp(14px, 4.4cqi, 30px);
+  background: var(--omu-bg);
+  border-top: 1px solid rgba(35, 24, 15, 0.12);
+  box-shadow: 0 -16px 30px -22px rgba(35, 24, 15, 0.55);
+}
+.omu-screen.has-order .omu-bar {
+  display: flex;
+}
+@container omu-root (width < 470px) {
+  .omu-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .omu-cta {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.omu-total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.omu-total-label {
+  font-size: clamp(11px, 1.7cqi, 13px);
+  letter-spacing: 0.02em;
+  color: var(--omu-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omu-total-val {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(6px, 1.2cqi, 12px);
+  font-weight: 500;
+  font-size: clamp(15px, 2.6cqi, 20px);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.omu-total-val > .omu-sum {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--omu-accent);
+}
+.omu-dot {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  translate: 0 -0.15em;
+}
+
+.omu-cta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(8px, 1.4cqi, 12px);
+  padding: clamp(9px, 1.5cqi, 12px) clamp(16px, 2.6cqi, 24px);
+  background: var(--omu-accent);
+  border-radius: 100px;
+  color: #fff7ec;
+  font-size: clamp(15px, 2.3cqi, 18px);
+  font-weight: 500;
+  line-height: 1.35;
+  transition: background 0.2s ease, scale 0.12s ease;
+}
+.omu-cta svg {
+  flex: 0 0 auto;
+  width: clamp(16px, 2.2cqi, 19px);
+  height: clamp(16px, 2.2cqi, 19px);
+  transition: translate 0.22s var(--omu-e);
+}
+.omu-cta:hover {
+  background: #a03e22;
+}
+.omu-cta:hover svg {
+  translate: 3px 0;
+}
+.omu-cta:active {
+  scale: 0.985;
+}
+
+.omu-sr {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* the queue ticket shown after an order is placed */
+.omu-receipt {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background: rgba(35, 24, 15, 0.38);
+  backdrop-filter: blur(6px);
+  animation: omu-in 0.3s var(--omu-e) both;
+}
+.omu-ticket {
+  width: min(420px, 100%);
+  background: var(--omu-panel);
+  border-radius: 22px;
+  padding: clamp(20px, 4cqi, 30px);
+  text-align: center;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.45);
+}
