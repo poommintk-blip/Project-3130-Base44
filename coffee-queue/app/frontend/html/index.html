@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123D2F">
+  <title>Coffee Queue · Order</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="bar">
+      <span class="brand">Coffee Queue</span>
+      <nav><a href="queue.html">Track order</a><a href="staff.html">Staff</a></nav>
+    </div>
+    <div class="intro">
+      <h1>Order drinks</h1>
+      <p>Add several drinks to one order and get a queue number.</p>
+    </div>
+  </header>
+
+  <main>
+    <form id="orderForm" autocomplete="off">
+      <section class="card">
+        <div class="group">
+          <label class="field-title" for="name">Your name</label>
+          <input type="text" id="name" maxlength="40" placeholder="e.g. Sam" required>
+        </div>
+
+        <div class="group">
+          <span class="field-title">Drink</span>
+          <div class="drinks" id="drinks"></div>
+        </div>
+
+        <div class="group">
+          <span class="field-title">Hot or iced</span>
+          <div class="pill" id="temps">
+            <button type="button" class="opt on" data-v="hot">🔥 Hot</button>
+            <button type="button" class="opt" data-v="iced">🧊 Iced</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <span class="field-title">Quantity</span>
+          <div class="stepper">
+            <button type="button" id="minus" aria-label="Decrease quantity">−</button>
+            <output id="qty">1</output>
+            <button type="button" id="plus" aria-label="Increase quantity">+</button>
+          </div>
+        </div>
+
+        <button class="btn ghost" id="addBtn" type="button" disabled>Add to order</button>
+      </section>
+
+      <section class="card" id="cartCard">
+        <span class="field-title">Your order</span>
+        <ul class="cart" id="cart"></ul>
+        <p class="empty-cart" id="cartEmpty">Nothing here yet. Pick a drink above, then tap Add to order.</p>
+        <div class="total hidden" id="totalRow"><span>Total</span><span class="amt" id="total">฿0</span></div>
+        <div id="msg" class="msg hidden" style="margin:14px 0 0"></div>
+      </section>
+
+      <button class="btn cherry stick" id="submitBtn" type="submit" disabled>Place order</button>
+    </form>
+
+    <section id="result" class="ticket hidden">
+      <div class="ticket-top">
+        <p class="small">Your queue number</p>
+        <p class="num" id="queueNum">-</p>
+      </div>
+      <div class="perf"></div>
+      <div class="ticket-bottom">
+        <ul class="lines" id="ticketLines"></ul>
+        <p class="sub" id="nameLine"></p>
+        <div class="total hidden" id="totalLine"><span>Total</span><span class="amt" id="ticketTotal"></span></div>
+        <a class="btn" id="trackLink" href="queue.html">Track my order</a>
+        <button class="btn ghost" id="again" type="button">Order more</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    // drink/price/temp/qty = สิ่งที่กำลังเลือกอยู่, items = รายการในออร์เดอร์
+    const state = { drink: '', price: null, temp: 'hot', qty: 1, items: [] };
+    const $ = (id) => document.getElementById(id);
+    const MAX_QTY = 20;
+
+    const cartTotal = () =>
+      state.items.length && state.items.every((i) => i.price !== null)
+        ? state.items.reduce((s, i) => s + i.price * i.quantity, 0)
+        : null;
+
+    function renderCart() {
+      const ul = $('cart');
+      ul.replaceChildren();
+      state.items.forEach((it, idx) => {
+        const minus = el('button', { type: 'button', 'aria-label': 'Decrease ' + it.drink, text: '−' });
+        const plus = el('button', { type: 'button', 'aria-label': 'Increase ' + it.drink, text: '+' });
+        const rm = el('button', { type: 'button', class: 'rm', text: 'Remove' });
+        minus.addEventListener('click', () => {
+          if (it.quantity > 1) it.quantity -= 1; else state.items.splice(idx, 1);
+          refresh();
+        });
+        plus.addEventListener('click', () => { it.quantity = Math.min(MAX_QTY, it.quantity + 1); refresh(); });
+        rm.addEventListener('click', () => { state.items.splice(idx, 1); refresh(); });
+        ul.append(el('li', {},
+          el('span', { class: 'nm' }, it.drink, el('span', { class: 'tp', text: ' ' + tempLabel(it.temp) })),
+          el('span', { class: 'lt', text: it.price !== null ? baht(it.price * it.quantity) : '' }),
+          el('span', { class: 'mini' }, minus, el('output', { text: String(it.quantity) }), plus),
+          rm));
+      });
+    }
+
+    function refresh() {
+      renderCart();
+      $('cartEmpty').classList.toggle('hidden', state.items.length > 0);
+      const total = cartTotal();
+      $('totalRow').classList.toggle('hidden', total === null);
+      if (total !== null) $('total').textContent = baht(total);
+
+      const add = $('addBtn');
+      add.disabled = !state.drink;
+      add.textContent = 'Add to order' + (state.drink && state.price !== null ? ' ' + baht(state.price * state.qty) : '');
+      $('submitBtn').disabled = !(state.items.length || state.drink);
+    }
+
+    function addCurrent() {
+      if (!state.drink) return false;
+      const same = state.items.find((i) => i.drink === state.drink && i.temp === state.temp);
+      if (same) same.quantity = Math.min(MAX_QTY, same.quantity + state.qty);
+      else state.items.push({ drink: state.drink, price: state.price, temp: state.temp, quantity: state.qty });
+      state.drink = ''; state.price = null; state.qty = 1;
+      $('qty').textContent = '1';
+      $('drinks').querySelectorAll('.drink').forEach((c) => { c.classList.remove('on'); c.setAttribute('aria-pressed', 'false'); });
+      return true;
+    }
+
+    function renderDrinks(list) {
+      const box = $('drinks');
+      box.replaceChildren();
+      list.forEach((d) => {
+        const name = typeof d === 'string' ? d : (d.name || d.title);
+        if (!name) return;
+        const price = typeof d === 'object' && d.price != null && !isNaN(Number(d.price)) ? Number(d.price) : null;
+        const btn = el('button', { type: 'button', class: 'drink', 'aria-pressed': 'false' },
+          el('span', { class: 'nm' },
+            el('span', { text: name }),
+            price !== null ? el('span', { class: 'pr', text: baht(price) }) : ''),
+          el('span', { class: 'tick' }));
+        btn.addEventListener('click', () => {
+          const was = state.drink === name; // กดซ้ำเพื่อยกเลิกการเลือก
+          box.querySelectorAll('.drink').forEach((c) => { c.classList.remove('on'); c.setAttribute('aria-pressed', 'false'); });
+          state.drink = was ? '' : name;
+          state.price = was ? null : price;
+          if (!was) { btn.classList.add('on'); btn.setAttribute('aria-pressed', 'true'); }
+          refresh();
+        });
+        box.append(btn);
+      });
+    }
+
+    async function loadMenu() {
+      let list = DEFAULT_MENU;
+      try {
+        const data = await api(ENDPOINTS.menu());
+        const arr = Array.isArray(data) ? data : (data && data.items);
+        if (Array.isArray(arr) && arr.length) list = arr;
+      } catch (e) { /* ใช้เมนูเริ่มต้น */ }
+      renderDrinks(list);
+    }
+
+    $('temps').addEventListener('click', (e) => {
+      const b = e.target.closest('.opt');
+      if (!b) return;
+      state.temp = b.dataset.v;
+      $('temps').querySelectorAll('.opt').forEach((c) => c.classList.toggle('on', c === b));
+    });
+    $('minus').onclick = () => { state.qty = Math.max(1, state.qty - 1); $('qty').textContent = state.qty; refresh(); };
+    $('plus').onclick = () => { state.qty = Math.min(MAX_QTY, state.qty + 1); $('qty').textContent = state.qty; refresh(); };
+
+    $('addBtn').addEventListener('click', () => {
+      if (!addCurrent()) return;
+      showMsg($('msg'), '');
+      refresh();
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      $('cartCard').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+    });
+
+    $('orderForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addCurrent(); // เครื่องดื่มที่เลือกค้างไว้ จะรวมในออร์เดอร์ด้วย
+      refresh();
+      const name = $('name').value.trim();
+      if (!name) return showMsg($('msg'), 'Enter your name so the barista can call you.');
+      if (!state.items.length) return showMsg($('msg'), 'Pick at least one drink.');
+      showMsg($('msg'), '');
+      const btn = $('submitBtn');
+      btn.disabled = true; btn.textContent = 'Sending order...';
+      const items = state.items.map((i) => ({ drink: i.drink, temp: i.temp, quantity: i.quantity }));
+      try {
+        const res = await api(ENDPOINTS.createOrder(), { method: 'POST', body: { name, items } });
+        const q = res && queueOf(res);
+        if (q === undefined || q === null) throw new Error('No queue number came back. Please try again.');
+        try { localStorage.setItem('lastQueue', String(q)); } catch (_) {}
+        $('queueNum').textContent = q;
+        fillItems($('ticketLines'), { items: (res.items && res.items.length) ? res.items : items });
+        $('nameLine').textContent = 'K. ' + name;
+        // ใช้ยอดที่ Backend คำนวณถ้ามี ไม่งั้นรวมจากราคาในเมนู
+        const total = priceOf(res) ?? cartTotal();
+        $('totalLine').classList.toggle('hidden', total === null);
+        if (total !== null) $('ticketTotal').textContent = baht(total);
+        $('trackLink').href = 'queue.html?q=' + encodeURIComponent(q);
+        state.items = [];
+        $('orderForm').classList.add('hidden');
+        const t = $('result');
+        t.classList.remove('hidden', 'print');
+        void t.offsetWidth; // เริ่มอนิเมชันใหม่ทุกครั้งที่สั่ง
+        t.classList.add('print');
+        window.scrollTo({ top: 0 });
+      } catch (err) {
+        showMsg($('msg'), err.message);
+      } finally {
+        btn.textContent = 'Place order';
+        refresh();
+      }
+    });
+
+    $('again').onclick = () => {
+      $('result').classList.add('hidden');
+      $('orderForm').classList.remove('hidden');
+      refresh();
+      window.scrollTo({ top: 0 });
+    };
+
+    loadMenu();
+    refresh();
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# รันทั้งระบบ: docker compose up --build  แล้วเปิด http://localhost:8080
+services:
+  frontend:                 # Container 1: Nginx + หน้าเว็บ
+    build: ./frontend
+    ports:
+      - "8080:80"           # เปิดออกมาที่ localhost:8080
+    depends_on:
+      - backend
+
+  backend:                  # Container 2: Node.js API
+    build: ./backend
+    environment:
+      PGHOST: db            # ชื่อ service ของ Database
+      PGUSER: coffee
+      PGPASSWORD: coffee123
+      PGDATABASE: coffee
+      STAFF_PIN: "1234"
+    depends_on:
+      - db
+
+  db:                       # Container 3: PostgreSQL
+    image: postgres:16
+    environment:
+      POSTGRES_USER: coffee
+      POSTGRES_PASSWORD: coffee123
+      POSTGRES_DB: coffee
+    volumes:
+      - dbdata:/var/lib/postgresql/data   # ข้อมูลไม่หายเมื่อลบ container
+
+volumes:
+  dbdata:

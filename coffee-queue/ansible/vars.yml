@@ -1,0 +1,19 @@
+# ===== แก้ค่าในไฟล์นี้ให้เป็นของตัวเองก่อนรัน (หาค่าได้แบบเดียวกับ Lab 2) =====
+owner_id: "bXXXXXXXX"                 # รหัสนักศึกษาของเจ้าของบัญชี AWS
+project_id: "DGT013130-COFFEE"         # ใช้ติด Tag ให้รู้ว่าเครื่องไหนเป็นของโปรเจกต์นี้
+
+region: "ap-southeast-1"               # Singapore
+vpc_id: "vpc-REPLACE"
+subnet_id: "subnet-REPLACE"            # Subnet ที่ออกอินเทอร์เน็ตได้ (เหมือน Lab 2)
+ami_id: "ami-REPLACE"                  # Ubuntu Server 24.04 LTS, 64-bit (x86)
+key_name: "lab01-bXXXXXXXX-key"        # ชื่อ Key Pair บน AWS (ไม่มี .pem) สร้างใหม่ได้ตามคู่มือข้อ 3.5
+ssh_key_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/lab2-key.pem"   # ไฟล์ .pem ของ key_name ข้างบน
+ssh_cidr: "{{ lookup('ansible.builtin.pipe', 'curl -4fsS https://checkip.amazonaws.com') | trim }}/32"
+
+server_type: "t3.small"                # k3s server ต้องการ RAM 2 GB
+worker_type: "t3.small"
+worker_count: 2                        # จำนวน worker (ปรับ 1 หรือ 2)
+
+# image บน Docker Hub (ต้องตั้งเป็น Public)
+dockerhub_user: "REPLACE"
+app_version: "1.0.0"

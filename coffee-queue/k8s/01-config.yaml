@@ -1,0 +1,11 @@
+# ค่าตั้งค่าทั่วไป (ไม่ใช่ความลับ) ส่งให้ Backend และ Postgres เป็น environment variable
+# ส่วนรหัสผ่านอยู่ใน Secret ชื่อ coffee-secret ที่ deploy.yml สร้างให้ (ไม่เก็บใน Git)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coffee-config
+  namespace: coffee-queue
+data:
+  PGHOST: postgres          # ชื่อ Service ของ Database
+  PGUSER: coffee
+  PGDATABASE: coffee

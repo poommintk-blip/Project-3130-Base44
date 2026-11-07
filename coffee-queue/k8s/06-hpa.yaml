@@ -1,0 +1,21 @@
+# Scaling: ถ้า CPU เฉลี่ยของ Backend เกิน 60% ของ requests ให้เพิ่ม pod ได้ถึง 5 ตัว
+# (k3s มี metrics-server มาให้แล้ว)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+  namespace: coffee-queue
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

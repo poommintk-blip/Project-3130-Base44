@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123D2F">
+  <meta name="robots" content="noindex">
+  <title>Coffee Queue · Staff</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="bar">
+      <span class="brand">Coffee Queue</span>
+      <nav><a href="index.html">Order drinks</a><a href="#" id="logout" class="hidden">Log out</a></nav>
+    </div>
+    <div class="intro">
+      <h1>Orders</h1>
+      <p>Tap a button to move an order on.</p>
+    </div>
+  </header>
+
+  <main>
+    <form id="login" class="card" autocomplete="off">
+      <label class="field-title" for="pin">Staff PIN</label>
+      <input type="password" id="pin" inputmode="numeric" placeholder="Enter PIN" required>
+      <div id="loginMsg" class="msg hidden" style="margin:14px 0 0"></div>
+      <button class="btn cherry" type="submit" style="margin-top:16px">Show orders</button>
+    </form>
+
+    <section id="board" class="hidden">
+      <div class="toolbar">
+        <span class="updated" id="updated"></span>
+      </div>
+      <div id="boardMsg" class="msg hidden"></div>
+      <div id="list"></div>
+      <div id="empty" class="empty hidden">
+        <strong>No orders here</strong>
+        New orders appear here.
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let pin = '';
+    let timer = null;
+    let orders = [];
+
+    const isOpen = (o) => statusIndex(o.status) !== 3; // ลูกค้ารับแล้วจะไม่แสดง
+
+    function logout(message) {
+      clearTimeout(timer);
+      pin = '';
+      try { sessionStorage.removeItem('staffPin'); } catch (_) {}
+      $('board').classList.add('hidden');
+      $('login').classList.remove('hidden');
+      $('logout').classList.add('hidden');
+      $('pin').value = '';
+      showMsg($('loginMsg'), message || '', 'err');
+    }
+
+    function render() {
+      const list = $('list');
+      list.replaceChildren();
+      const rows = orders.filter(isOpen);
+      $('empty').classList.toggle('hidden', rows.length > 0);
+
+      rows.forEach((o) => {
+        const q = queueOf(o);
+        const idx = statusIndex(o.status);
+        const next = idx >= 0 && idx < STATUSES.length - 1 ? STATUSES[idx + 1] : null;
+        const lines = el('ul', { class: 'lines' });
+        fillItems(lines, o);
+        const card = el('div', { class: 'card order s' + Math.max(idx, 0) },
+          el('div', { class: 'head' },
+            el('span', { class: 'q', text: String(q) }),
+            el('span', { class: 'badge', text: idx >= 0 ? `${STATUSES[idx].icon} ${STATUSES[idx].label}` : String(o.status || '?') })),
+          lines,
+          el('div', { class: 'meta' },
+            el('span', { class: 'who', text: o.name ? 'K. ' + o.name : '' }),
+            priceOf(o) !== null ? el('span', { class: 'amt', text: baht(priceOf(o)) }) : ''));
+        if (next) {
+          const btn = el('button', { class: 'btn act' + (idx + 1), type: 'button', text: next.act });
+          btn.addEventListener('click', () => advance(q, next.key, btn));
+          card.append(btn);
+        }
+        list.append(card);
+      });
+    }
+
+    async function load(silent) {
+      clearTimeout(timer);
+      try {
+        const data = await api(ENDPOINTS.staffOrders(), { pin });
+        orders = Array.isArray(data) ? data : (data && data.orders) || [];
+        showMsg($('boardMsg'), '');
+        $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        render();
+      } catch (err) {
+        if (err.status === 401 || err.status === 403) return logout('Wrong PIN. Please try again.');
+        showMsg($('boardMsg'), err.message);
+        if (!silent && !orders.length) throw err;
+      }
+      timer = setTimeout(() => load(true), 10000);
+    }
+
+    async function advance(q, status, btn) {
+      btn.disabled = true;
+      try {
+        await api(ENDPOINTS.setStatus(q), { method: 'PATCH', body: { status }, pin });
+        const o = orders.find((x) => String(queueOf(x)) === String(q));
+        if (o) o.status = status;
+        render();
+        load(true);
+      } catch (err) {
+        if (err.status === 401 || err.status === 403) return logout('Wrong PIN. Please try again.');
+        btn.disabled = false;
+        showMsg($('boardMsg'), err.message);
+      }
+    }
+
+    async function enter(p) {
+      pin = p;
+      try {
+        await load(false);
+        if (!pin) return; // ถูกออกจากระบบเพราะ PIN ผิด
+        try { sessionStorage.setItem('staffPin', p); } catch (_) {}
+        $('login').classList.add('hidden');
+        $('board').classList.remove('hidden');
+        $('logout').classList.remove('hidden');
+      } catch (err) {
+        logout(err.message);
+      }
+    }
+
+    $('login').addEventListener('submit', (e) => {
+      e.preventDefault();
+      showMsg($('loginMsg'), '');
+      const p = $('pin').value.trim();
+      if (p) enter(p);
+    });
+    $('logout').addEventListener('click', (e) => { e.preventDefault(); logout(''); });
+
+    (function init() {
+      let saved = '';
+      try { saved = sessionStorage.getItem('staffPin') || ''; } catch (_) {}
+      if (saved) enter(saved);
+    })();
+  </script>
+</body>
+</html>

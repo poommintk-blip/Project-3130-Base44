@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123D2F">
+  <title>Coffee Queue · Track order</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="bar">
+      <span class="brand">Coffee Queue</span>
+      <nav><a href="index.html">Order drinks</a><a href="staff.html">Staff</a></nav>
+    </div>
+    <div class="intro">
+      <h1>Track my order</h1>
+      <p>Enter your queue number.</p>
+    </div>
+  </header>
+
+  <main>
+    <form id="form" class="card" autocomplete="off">
+      <label class="field-title" for="q">Queue number</label>
+      <div class="row">
+        <input type="text" id="q" placeholder="e.g. A012" required>
+        <button class="btn cherry" type="submit">Check status</button>
+      </div>
+      <div id="msg" class="msg hidden" style="margin:14px 0 0"></div>
+    </form>
+
+    <section id="result" class="ticket hidden" data-s="0">
+      <div class="ticket-top">
+        <p class="small">Queue</p>
+        <p class="num" id="qNum"></p>
+        <p class="state" id="stateText"></p>
+      </div>
+      <div class="perf"></div>
+      <div class="ticket-bottom">
+        <ul class="lines" id="lines"></ul>
+        <p class="sub" id="nameLine"></p>
+        <div class="total hidden" id="totalLine"><span>Total</span><span class="amt" id="ticketTotal"></span></div>
+        <ul class="steps" id="steps"></ul>
+        <p id="hint" class="hint"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let timer = null;
+    let current = '';
+
+    function render(order, q) {
+      const idx = statusIndex(order.status);
+      const t = $('result');
+      t.dataset.s = idx;
+      $('qNum').textContent = queueOf(order) ?? q;
+      $('stateText').textContent = idx >= 0 ? `${STATUSES[idx].icon} ${STATUSES[idx].label}` : String(order.status || 'Unknown status');
+      fillItems($('lines'), order);
+      $('nameLine').textContent = order.name ? 'K. ' + order.name : '';
+      const tot = priceOf(order);
+      $('totalLine').classList.toggle('hidden', tot === null);
+      if (tot !== null) $('ticketTotal').textContent = baht(tot);
+
+      const ul = $('steps');
+      ul.replaceChildren();
+      STATUSES.forEach((s, i) => {
+        const cls = i < idx ? 'done' : i === idx ? 'now' : '';
+        ul.append(el('li', { class: cls },
+          el('span', { class: 'ic', text: i < idx ? '✓' : s.icon }),
+          el('span', {}, el('span', { class: 'th', text: s.label }), el('span', { class: 'en', text: s.desc }))));
+      });
+
+      if (idx === 2) $('hint').textContent = 'Ready! Pick up at the counter.';
+      else if (idx === 3) $('hint').textContent = 'Thank you!';
+      else if (idx === -1) $('hint').textContent = '';
+      else $('hint').textContent = 'Updates every 8 seconds.';
+
+      if (t.classList.contains('hidden')) {
+        t.classList.remove('hidden');
+        t.classList.add('print');
+      }
+      return idx;
+    }
+
+    async function check(q, silent) {
+      clearTimeout(timer);
+      current = q;
+      if (!silent) showMsg($('msg'), '');
+      try {
+        const order = await api(ENDPOINTS.getOrder(q));
+        if (!order) throw Object.assign(new Error('Queue number not found'), { status: 404 });
+        const idx = render(order, q);
+        if (q === current && idx !== 3) timer = setTimeout(() => check(q, true), 8000);
+      } catch (err) {
+        if (err.status === 404) {
+          $('result').classList.add('hidden');
+          $('result').classList.remove('print');
+          showMsg($('msg'), 'Queue number not found. Please check the number.');
+        } else if (!silent) {
+          showMsg($('msg'), err.message);
+        } else {
+          timer = setTimeout(() => check(q, true), 8000);
+        }
+      }
+    }
+
+    $('form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = $('q').value.trim();
+      if (q) check(q, false);
+    });
+
+    (function init() {
+      const p = new URLSearchParams(location.search).get('q');
+      let saved = '';
+      try { saved = localStorage.getItem('lastQueue') || ''; } catch (_) {}
+      const q = p || saved;
+      if (q) { $('q').value = q; check(q, false); }
+    })();
+  </script>
+</body>
+</html>

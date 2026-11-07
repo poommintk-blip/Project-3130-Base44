@@ -1,0 +1,67 @@
+---
+# ขั้นที่ 5.3: deploy แอปขึ้น cluster (รันซ้ำได้ ใช้ตอนอัปเดตเวอร์ชันด้วย)
+- name: Deploy Coffee Queue to k3s
+  hosts: server
+  become: true
+  gather_facts: false
+  vars_files:
+    - vars.yml
+    - secrets.yml
+  vars:
+    k8s_dir: /opt/coffee-queue/k8s
+
+  tasks:
+    - name: Copy the Kubernetes files to the server
+      ansible.builtin.copy:
+        src: ../k8s/
+        dest: "{{ k8s_dir }}/"
+        mode: "0644"
+
+    - name: Put the Docker Hub user and version into the image names
+      ansible.builtin.replace:
+        path: "{{ k8s_dir }}/{{ item }}"
+        regexp: 'DOCKERHUB_USER/(coffee-[a-z]+):APP_VERSION'
+        replace: '{{ dockerhub_user }}/\1:{{ app_version }}'
+      loop:
+        - 03-backend.yaml
+        - 04-frontend.yaml
+
+    - name: Create the namespace
+      ansible.builtin.command: k3s kubectl apply -f {{ k8s_dir }}/00-namespace.yaml
+      changed_when: false
+
+    - name: Create or update the Secret (DB password and staff PIN)
+      ansible.builtin.shell: >
+        k3s kubectl -n coffee-queue create secret generic coffee-secret
+        --from-literal=PGPASSWORD='{{ db_password }}'
+        --from-literal=STAFF_PIN='{{ staff_pin }}'
+        --dry-run=client -o yaml | k3s kubectl apply -f -
+      no_log: true
+      changed_when: false
+
+    - name: Apply all Kubernetes files
+      ansible.builtin.command: k3s kubectl apply -f {{ k8s_dir }}/
+      register: applied
+      changed_when: "'configured' in applied.stdout or 'created' in applied.stdout"
+
+    - name: Wait for the database
+      ansible.builtin.command: k3s kubectl -n coffee-queue rollout status statefulset/postgres --timeout=300s
+      changed_when: false
+
+    - name: Wait for the backend and frontend
+      ansible.builtin.command: k3s kubectl -n coffee-queue rollout status deployment/{{ item }} --timeout=300s
+      loop: [backend, frontend]
+      changed_when: false
+
+    - name: Show where everything runs
+      ansible.builtin.command: k3s kubectl -n coffee-queue get pods,svc,ingress,hpa -o wide
+      register: status
+      changed_when: false
+
+    - name: Print status
+      ansible.builtin.debug:
+        var: status.stdout_lines
+
+    - name: Open the website
+      ansible.builtin.debug:
+        msg: "Open http://{{ ansible_host }}/  (staff page: http://{{ ansible_host }}/staff.html)"

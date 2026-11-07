@@ -1,0 +1,5 @@
+# พื้นที่แยกของระบบเรา ทุก resource อยู่ใน namespace นี้
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coffee-queue

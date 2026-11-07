@@ -1,0 +1,50 @@
+---
+# ขั้นที่ 7: ลบเฉพาะทรัพยากรของโปรเจกต์นี้ (ค้นจาก Tag Owner + Project)
+- name: Remove the Coffee Queue AWS resources
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Check identifiers
+      ansible.builtin.assert:
+        that:
+          - owner_id is match('^[A-Za-z0-9-]{5,32}$')
+          - vpc_id is match('^vpc-[0-9a-f]+$')
+
+    - name: Find this project's EC2 instances
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        filters:
+          "tag:Owner": "{{ owner_id }}"
+          "tag:Project": "{{ project_id }}"
+          "tag:Role": [server, worker]
+          "vpc-id": "{{ vpc_id }}"
+          "instance-state-name": [pending, running, stopping, stopped]
+      register: found
+
+    - name: Show the instance IDs to remove
+      ansible.builtin.debug:
+        msg: "{{ found.instances | map(attribute='instance_id') | list }}"
+
+    - name: Terminate the instances
+      amazon.aws.ec2_instance:
+        region: "{{ region }}"
+        instance_ids: "{{ found.instances | map(attribute='instance_id') | list }}"
+        state: absent
+        wait: true
+      when: found.instances | length > 0
+
+    - name: Delete the cluster security group
+      amazon.aws.ec2_security_group:
+        region: "{{ region }}"
+        name: "coffee-{{ owner_id }}-sg"
+        vpc_id: "{{ vpc_id }}"
+        state: absent
+
+    - name: Remove the old inventory file
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/inventory.ini"
+        state: absent

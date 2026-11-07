@@ -1,0 +1,158 @@
+---
+# ขั้นที่ 5.1: สร้าง Security Group และ EC2 (k3s server 1 + worker ตาม worker_count)
+# รันซ้ำได้: exact_count ตรวจเครื่องที่มีอยู่ก่อน จึงไม่สร้างเครื่องเกิน
+- name: Provision EC2 for the Coffee Queue k3s cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Check input before creating resources
+      ansible.builtin.assert:
+        that:
+          - owner_id is match('^[A-Za-z0-9-]{5,32}$')
+          - vpc_id is match('^vpc-[0-9a-f]+$')
+          - subnet_id is match('^subnet-[0-9a-f]+$')
+          - ami_id is match('^ami-[0-9a-f]+$')
+          - (worker_count | int) in [1, 2]
+          - ssh_cidr is match('^[0-9.]+/32$')
+        fail_msg: "Edit vars.yml with your real values before running this playbook."
+
+    - name: Create the cluster security group
+      amazon.aws.ec2_security_group:
+        name: "coffee-{{ owner_id }}-sg"
+        description: "Coffee Queue k3s cluster"
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        rules:
+          - proto: tcp                     # SSH จากเครื่องเราเท่านั้น
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ ssh_cidr }}"
+          - proto: tcp                     # ผู้ใช้เปิดเว็บผ่าน Ingress
+            from_port: 80
+            to_port: 80
+            cidr_ip: "0.0.0.0/0"
+          - proto: all                     # เครื่องใน cluster คุยกันได้ทุกพอร์ต (6443, 8472, 10250)
+            group_name: "coffee-{{ owner_id }}-sg"
+        tags:
+          Owner: "{{ owner_id }}"
+          Project: "{{ project_id }}"
+          Role: "cluster-sg"
+      register: cluster_sg
+
+    - name: Ensure one k3s server exists
+      amazon.aws.ec2_instance:
+        name: "coffee-{{ owner_id }}-server"
+        region: "{{ region }}"
+        image_id: "{{ ami_id }}"
+        instance_type: "{{ server_type }}"
+        key_name: "{{ key_name }}"
+        network_interfaces:
+          - subnet_id: "{{ subnet_id }}"
+            assign_public_ip: true
+            groups:
+              - "{{ cluster_sg.group_id }}"
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 20
+              volume_type: gp3
+              delete_on_termination: true
+        exact_count: 1
+        filters:
+          "tag:Owner": "{{ owner_id }}"
+          "tag:Project": "{{ project_id }}"
+          "tag:Role": "server"
+          "vpc-id": "{{ vpc_id }}"
+          "instance-state-name": [pending, running, stopping, stopped]
+        tags:
+          Owner: "{{ owner_id }}"
+          Project: "{{ project_id }}"
+          Role: "server"
+        state: started
+        wait: true
+
+    - name: Ensure the k3s workers exist
+      amazon.aws.ec2_instance:
+        name: "coffee-{{ owner_id }}-worker"
+        region: "{{ region }}"
+        image_id: "{{ ami_id }}"
+        instance_type: "{{ worker_type }}"
+        key_name: "{{ key_name }}"
+        network_interfaces:
+          - subnet_id: "{{ subnet_id }}"
+            assign_public_ip: true
+            groups:
+              - "{{ cluster_sg.group_id }}"
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 20
+              volume_type: gp3
+              delete_on_termination: true
+        exact_count: "{{ worker_count | int }}"
+        filters:
+          "tag:Owner": "{{ owner_id }}"
+          "tag:Project": "{{ project_id }}"
+          "tag:Role": "worker"
+          "vpc-id": "{{ vpc_id }}"
+          "instance-state-name": [pending, running, stopping, stopped]
+        tags:
+          Owner: "{{ owner_id }}"
+          Project: "{{ project_id }}"
+          Role: "worker"
+        state: started
+        wait: true
+
+    - name: Read the running server
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        filters:
+          "tag:Owner": "{{ owner_id }}"
+          "tag:Project": "{{ project_id }}"
+          "tag:Role": "server"
+          "vpc-id": "{{ vpc_id }}"
+          "instance-state-name": running
+      register: server_info
+
+    - name: Read the running workers
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        filters:
+          "tag:Owner": "{{ owner_id }}"
+          "tag:Project": "{{ project_id }}"
+          "tag:Role": "worker"
+          "vpc-id": "{{ vpc_id }}"
+          "instance-state-name": running
+      register: worker_info
+
+    - name: Confirm the instance counts
+      ansible.builtin.assert:
+        that:
+          - server_info.instances | length == 1
+          - worker_info.instances | length == (worker_count | int)
+
+    - name: Write the inventory from the running instances
+      ansible.builtin.template:
+        src: templates/inventory.ini.j2
+        dest: "{{ playbook_dir }}/inventory.ini"
+        mode: "0644"
+
+    - name: Wait until SSH is ready on every instance
+      ansible.builtin.wait_for:
+        host: "{{ item.public_ip_address }}"
+        port: 22
+        timeout: 300
+      loop: "{{ server_info.instances + worker_info.instances }}"
+      loop_control:
+        label: "{{ item.instance_id }}"
+
+    - name: Show instance IDs for the record
+      ansible.builtin.debug:
+        msg:
+          server_id: "{{ server_info.instances[0].instance_id }}"
+          worker_ids: "{{ worker_info.instances | map(attribute='instance_id') | list }}"
+          server_public_ip: "{{ server_info.instances[0].public_ip_address }}"
